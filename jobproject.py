@@ -1,3 +1,4 @@
+import os
 import random
 from collections import Counter
 import psycopg2
@@ -39,10 +40,10 @@ prob_red = colour_counts.get("RED", 0) / sum(colour_counts.values())
 
 # 6. Save to PostgreSQL
 DB_CONFIG = {
-    "host": "localhost",
-    "database": "bincomproject",  
-    "user": "postgres",         
-    "password": "#lionsdon'teatgrass"
+    "host": os.getenv("DB_HOST"),
+    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
 }
 
 try:
