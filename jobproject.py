@@ -1,7 +1,8 @@
 import random
 from collections import Counter
+import psycopg2
 
-# Colours from the table (each day as a string)
+# 1. Weekly colours data
 weekly_colours = [
     "GREEN, YELLOW, GREEN, BROWN, BLUE, PINK, BLUE, YELLOW, ORANGE, CREAM, ORANGE, RED, WHITE, BLUE, WHITE, BLUE, BLUE, BLUE, GREEN",
     "ARSH, BROWN, GREEN, BROWN, BLUE, BLUE, BLEW, PINK, PINK, ORANGE, ORANGE, RED, WHITE, BLUE, WHITE, WHITE, BLUE, BLUE, BLUE",
@@ -10,19 +11,16 @@ weekly_colours = [
     "GREEN, WHITE, GREEN, BROWN, BLUE, BLUE, BLACK, WHITE, ORANGE, RED, RED, RED, WHITE, BLUE, WHITE, BLUE, BLUE, BLUE, WHITE"
 ]
 
-# Flatten all colours into a single list
+# 2. Flatten & count frequencies
 all_colours = []
 for day in weekly_colours:
-    parts = [c.strip() for c in day.split(",")]
-    all_colours.extend(parts)
+    all_colours.extend([c.strip() for c in day.split(",")])
 
-# Count frequency of each colour
 colour_counts = Counter(all_colours)
 
-# Mean colour → most frequent one
+# 3. Mean, Median, Mode
 mean_colour = colour_counts.most_common(1)[0][0]
 
-# Median colour → middle of sorted list
 sorted_list = sorted(all_colours)
 n = len(sorted_list)
 if n % 2 == 0:
@@ -30,37 +28,53 @@ if n % 2 == 0:
 else:
     median_colour = sorted_list[n // 2]
 
-# Mode colour (colour with highest frequency)
 mode_colour = colour_counts.most_common(1)[0]  # (colour, count)
 
-# Variance of colours
+# 4. Variance
 avg_freq = sum(colour_counts.values()) / len(colour_counts)
 variance = sum((freq - avg_freq) ** 2 for freq in colour_counts.values()) / len(colour_counts)
 
-# Probability of picking red at random
+# 5. Probability of RED
 prob_red = colour_counts.get("RED", 0) / sum(colour_counts.values())
 
-# Save to PostgreSQL (basic example)
-import psycopg2
-try:
-    conn = psycopg2.connect(
-        host="localhost",
-        database="bincom_test",
-        user="postgres",
-        password="password"
-    )
-    cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS colour_frequency (colour TEXT, frequency INT)")
-    cur.execute("DELETE FROM colour_frequency")
-    for colour, freq in colour_counts.items():
-        cur.execute("INSERT INTO colour_frequency (colour, frequency) VALUES (%s, %s)", (colour, freq))
-    conn.commit()
-    cur.close()
-    conn.close()
-except Exception as e:
-    print("Database connection skipped:", e)
+# 6. Save to PostgreSQL
+DB_CONFIG = {
+    "host": "localhost",
+    "database": "bincomproject",  
+    "user": "postgres",         
+    "password": "#lionsdon'teatgrass"
+}
 
-# Recursive search
+try:
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+
+    # Create table if not exists
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS colour_frequency (
+            colour TEXT PRIMARY KEY,
+            frequency INT NOT NULL
+        )
+    """)
+
+    # Insert or update colours
+    for colour, freq in colour_counts.items():
+        cur.execute("""
+            INSERT INTO colour_frequency (colour, frequency)
+            VALUES (%s, %s)
+            ON CONFLICT (colour) DO UPDATE SET frequency = EXCLUDED.frequency
+        """, (colour, freq))
+
+    conn.commit()
+    print("✅ Colours saved successfully to PostgreSQL.")
+except Exception as e:
+    print("⚠ Database error:", e)
+finally:
+    if 'conn' in locals():
+        cur.close()
+        conn.close()
+
+# 7. Recursive Search
 def recursive_search(data_list, target, index=0):
     if index >= len(data_list):
         return False
@@ -68,11 +82,11 @@ def recursive_search(data_list, target, index=0):
         return True
     return recursive_search(data_list, target, index + 1)
 
-# Random 4-digit binary → decimal
+# 8. Random binary → decimal
 binary_str = "".join(random.choice("01") for _ in range(4))
 binary_decimal = int(binary_str, 2)
 
-# Fibonacci sum (first 50 terms)
+# 9. Fibonacci sum
 def fib_sum(n):
     a, b = 0, 1
     total = 0
@@ -83,12 +97,12 @@ def fib_sum(n):
 
 fib_total = fib_sum(50)
 
-# Extra bit: detect if '1' appears exactly 3 times → output 1 else 0
+# 10. Special "1 appears 3 times" logic
 input_seq = "0101101011101011011101101000111"
 output_seq = ""
+
 for i in range(len(input_seq)):
     if input_seq[i] == "1":
-        # Count 1s in the current 3-char window (if possible)
         window = input_seq[i:i+3]
         if window.count("1") == 3:
             output_seq += "1"
@@ -97,7 +111,7 @@ for i in range(len(input_seq)):
     else:
         output_seq += "0"
 
-# Results
+# 11. Print Results
 print("Mean colour:", mean_colour)
 print("Median colour:", median_colour)
 print("Mode colour:", mode_colour)
@@ -105,4 +119,4 @@ print("Variance:", variance)
 print(f"Probability of RED: {prob_red:.2%}")
 print("Random binary:", binary_str, "-> Decimal:", binary_decimal)
 print("Sum of first 50 Fibonacci numbers:", fib_total)
-print("Special 1s detection output:", output_seq)
+print("Special output sequence:", output_seq)
